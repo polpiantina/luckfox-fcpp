@@ -13,6 +13,8 @@ function usage() {
     echo -e "    \033[1munix\033[0m:                            overrides the auto-detected cmake platform to unix"
     echo -e "    \033[1mwindows\033[0m:                         overrides the auto-detected cmake platform to windows"
     echo -e "    \033[1mbazel\033[0m:                           sets the build tool to bazel instead of cmake"
+    echo -e "    \033[1mspecify-gcc <full_path>\033[0m:         explicitly sets the full path to the gcc compiler"
+    echo -e "    \033[1mspecify-gpp <full_path>\033[0m:         explicitly sets the full path to the g++ compiler"
     echo -e "    \033[1mhere\033[0m:                            sets the bazel working directory here"
     echo -e "    \033[1mgcc\033[0m:                             sets the bazel compiler to gcc"
     echo
@@ -301,35 +303,18 @@ while [ "$1" != "" ]; do
         export BAZEL_USE_CPP_ONLY_TOOLCHAIN=1
         export CC="$gpp"
         export CXX="$gpp"
-#   mimics the above gcc option, but uses the Luckfox toolchain
-    elif [ "$1" == "luckfox" ]; then
-        shift 1
-        gcc="/[path/to/toolchain]/luckfox-toolchain/arm-rockchip830-linux-uclibcgnueabihf/bin/arm-rockchip830-linux-uclibcgnueabihf-gcc-8.3.0"
-        gpp="/[path/to/toolchain]/luckfox-toolchain/arm-rockchip830-linux-uclibcgnueabihf/bin/arm-rockchip830-linux-uclibcgnueabihf-g++"
-        opts="$opts -DCMAKE_C_COMPILER=$gcc -DCMAKE_CXX_COMPILER=$gpp"
-        export BAZEL_USE_CPP_ONLY_TOOLCHAIN=1
-        export CC="$gpp"
-        export CXX="$gpp"
-#   additional way of specifying Luckfox toolchains or other gcc/gpp versions, inline
+#   select custom gcc/gpp versions, inline
     elif [ "$1" == "specify-gcc" ]; then
-        shift 1
-        if is_option "$1"; then
-            gcc=$(which $(compgen -c gcc- | grep "^gcc-[1-9][0-9]$" | sort | tail -n 1))
-        else
-            gcc="$1"
-            shift 1
-        fi
-        opts="$opts -DCMAKE_C_COMPILER=$gcc"
+        shift 1 # skip option
+        gcc="$1"
+        shift 1 # skip path
+        opts="$opts -DCMAKE_C_COMPILER=$gcc -DCMAKE_CROSSCOMPILING=true"
         export CC="$gcc"
     elif [ "$1" == "specify-gpp" ]; then
-        shift 1
-        if is_option "$1"; then
-            gpp=$(which $(compgen -c g++- | grep "^g++-[1-9][0-9]$" | sort | tail -n 1))
-        else
-            gpp="$1"
-            shift 1
-        fi
-        opts="$opts -DCMAKE_CXX_COMPILER=$gpp"
+        shift 1 # skip option      
+        gpp="$1"
+        shift 1 # skip path
+        opts="$opts -DCMAKE_CXX_COMPILER=$gpp -DCMAKE_CROSSCOMPILING=true"
         export BAZEL_USE_CPP_ONLY_TOOLCHAIN=1
         export CXX="$gpp"
     elif [ "$1" == "doc" ]; then
