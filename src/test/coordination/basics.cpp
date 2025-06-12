@@ -151,7 +151,7 @@ int sharing(node_t& node, trace_t call_point, int x) {
     internal::trace_call trace_caller(node.stack_trace, call_point);
     return coordination::fold_hood(node, 0, [](int x, int y) {
         return x+y;
-    }, coordination::nbr(node, 1.0, x));
+    }, coordination::nbr(node, 1, x));
 }
 
 template <typename node_t>
@@ -183,10 +183,16 @@ MULTI_TEST(BasicsTest, Nbr, O, 3) {
     int d;
     d = sharing(d0, 0, 4);
     EXPECT_EQ(4, d);
+    d = sharing(d0, 1, 8);
+    EXPECT_EQ(8, d);
     d = sharing(d1, 0, 2);
     EXPECT_EQ(2, d);
+    d = sharing(d1, 1, 16);
+    EXPECT_EQ(16, d);
     d = sharing(d2, 0, 1);
     EXPECT_EQ(1, d);
+    d = sharing(d2, 1, 32);
+    EXPECT_EQ(32, d);
     d0.round_end(0);
     d1.round_end(0);
     d2.round_end(0);
@@ -196,6 +202,8 @@ MULTI_TEST(BasicsTest, Nbr, O, 3) {
     d0.round_start(0);
     d = sharing(d0, 0, 3);
     EXPECT_EQ(7, d);
+    d = sharing(d0, 1, 3);
+    EXPECT_EQ(56, d);
     d = gossip(d0, 1, 3);
     EXPECT_EQ(3, d);
     d = gossip(d1, 1, 2);
@@ -327,7 +335,12 @@ int spawning(node_t& node, trace_t call_point, bool b) {
     }, k, false, 'a');
     if (b) assert(m.size() > 0);
     for (auto const& x  : m) c += 1 << (x.first * x.second);
-    auto mf = coordination::spawn(node, 2, [&](int i, bool, char){
+    m = coordination::spawn_deprecated(node, 2, [&](int i, bool, char){
+        return make_tuple(i, (int)node.uid >= i ? status::output : status::external_deprecated);
+    }, k, false, 'a');
+    if (b) assert(m.size() > 0);
+    for (auto const& x  : m) c += 1 << (x.first * x.second);
+    auto mf = coordination::spawn(node, 3, [&](int i, bool, char){
         return make_tuple(i, node.nbr_uid() >= i);
     }, k, false, 'a');
     if (b) assert(mf.size() > 0);
@@ -349,32 +362,32 @@ MULTI_TEST(BasicsTest, Spawn, O, 3) {
     EXPECT_EQ(0, d);
     sendall(d0, d1, d2);
     d = spawning(d0, 0, false);
-    EXPECT_EQ(0+0+0, d);
+    EXPECT_EQ(0+0+0+0, d);
     d = spawning(d1, 0, true);
-    EXPECT_EQ(2+2+2, d);
+    EXPECT_EQ(2+2+2+2, d);
     d = spawning(d2, 0, false);
-    EXPECT_EQ(0+0+0, d);
+    EXPECT_EQ(0+0+0+0, d);
     sendall(d0, d1, d2);
     d = spawning(d0, 0, false);
-    EXPECT_EQ(0+2+0, d);
+    EXPECT_EQ(0+0+0+2, d);
     d = spawning(d1, 0, false);
-    EXPECT_EQ(2+2+2, d);
+    EXPECT_EQ(2+2+2+2, d);
     d = spawning(d2, 0, false);
-    EXPECT_EQ(2+2+2, d);
+    EXPECT_EQ(2+2+2+2, d);
     sendall(d0, d1, d2);
     d = spawning(d0, 0, true);
-    EXPECT_EQ(1+3+1, d);
+    EXPECT_EQ(1+1+1+3, d);
     d = spawning(d1, 0, false);
-    EXPECT_EQ(2+2+2, d);
+    EXPECT_EQ(2+2+2+2, d);
     d = spawning(d2, 0, true);
-    EXPECT_EQ(18+18+18, d);
+    EXPECT_EQ(18+18+18+18, d);
     sendall(d0, d1, d2);
     d = spawning(d0, 0, false);
-    EXPECT_EQ(1+19+1, d);
+    EXPECT_EQ(1+1+1+19, d);
     d = spawning(d1, 0, true);
-    EXPECT_EQ(3+19+3, d);
+    EXPECT_EQ(3+3+3+19, d);
     d = spawning(d2, 0, true);
-    EXPECT_EQ(19+19+19, d);
+    EXPECT_EQ(19+19+19+19, d);
 }
 
 MULTI_TEST(BasicsTest, NbrUid, O, 3) {

@@ -20,6 +20,18 @@
     #endif
 #endif
 
+#ifdef __clang__
+    //! @brief ANSI escape code for starting highlighting static asser error text in gcc (no codes in clang)
+    #define ANSI_START ""
+    //! @brief ANSI escape code for ending highlighting static asser error text in gcc (no codes in clang)
+    #define ANSI_END ""
+#else
+    //! @brief ANSI escape code for starting highlighting static asser error text in gcc (no codes in clang)
+    #define ANSI_START "\u001b[1m\u001b[4m"
+    //! @brief ANSI escape code for ending highlighting static asser error text in gcc (no codes in clang)
+    #define ANSI_END "\u001b[0m"
+#endif
+
 #include <cassert>
 #include <functional>
 #include <memory>
@@ -81,13 +93,37 @@ inline U&& type_pack_wrapper(U&& x) {
  *  Useful to allow parameter pack expansion of an expression that does not depend
  *  on a integer parameter pack, according to the pack. Sample usage:
  * ~~~~~~~~~~~~~~~~~~~~~~~~~{.cpp}
- * f(common::type_pack_wrapper<xs>(<expr>)...);
+ * f(common::number_pack_wrapper<xs>(<expr>)...);
  * ~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 template <intmax_t, typename U>
 inline U&& number_pack_wrapper(U&& x) {
     return std::forward<U>(x);
 }
+
+/**
+ *  @brief Helper template returning its second argument.
+ *
+ *  Useful to allow parameter pack expansion for a type expression that does
+ *  not depend on a type parameter pack, according to the pack. Sample usage:
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~{.cpp}
+ * common::type_pack_type_wrapper<Ts, <expr>>...
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~
+ */
+template <typename, typename U>
+using type_pack_type_wrapper = U;
+
+/**
+ *  @brief Helper template returning its second argument.
+ *
+ *  Useful to allow parameter pack expansion of a type expression that doesn't
+ *  depend on a integer parameter pack, according to the pack. Sample usage:
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~{.cpp}
+ * common::number_pack_type_wrapper<xs, <expr>>...
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~
+ */
+template <intmax_t, typename U>
+using number_pack_type_wrapper = U;
 
 
 // TYPE PREDICATES
@@ -987,10 +1023,111 @@ struct wildcard {
         return *this;
     }
 
+    //! @brief Generic assignment.
+    template <typename T>
+    wildcard& operator=(T&&) const {
+        assert(false);
+        return *((wildcard*)this);
+    }
+
     //! @brief Generic conversion.
     template <typename T>
     operator T() const {
         return declare_reference<T>();
+    }
+
+    //! @brief Generic addition assignment.
+    template <typename T>
+    wildcard& operator+=(T&&) const {
+        assert(false);
+        return *((wildcard*)this);
+    }
+
+    //! @brief Generic subtraction assignment.
+    template <typename T>
+    wildcard& operator-=(T&&) const {
+        assert(false);
+        return *((wildcard*)this);
+    }
+
+    //! @brief Generic multiplication assignment.
+    template <typename T>
+    wildcard& operator*=(T&&) const {
+        assert(false);
+        return *((wildcard*)this);
+    }
+
+    //! @brief Generic division assignment.
+    template <typename T>
+    wildcard& operator/=(T&&) const {
+        assert(false);
+        return *((wildcard*)this);
+    }
+
+    //! @brief Generic remainder assignment.
+    template <typename T>
+    wildcard& operator%=(T&&) const {
+        assert(false);
+        return *((wildcard*)this);
+    }
+
+    //! @brief Generic and assignment.
+    template <typename T>
+    wildcard& operator&=(T&&) const {
+        assert(false);
+        return *((wildcard*)this);
+    }
+
+    //! @brief Generic or assignment.
+    template <typename T>
+    wildcard& operator|=(T&&) const {
+        assert(false);
+        return *((wildcard*)this);
+    }
+
+    //! @brief Generic xor assignment.
+    template <typename T>
+    wildcard& operator^=(T&&) const {
+        assert(false);
+        return *((wildcard*)this);
+    }
+
+    //! @brief Generic left shift assignment.
+    template <typename T>
+    wildcard& operator<<=(T&&) const {
+        assert(false);
+        return *((wildcard*)this);
+    }
+
+    //! @brief Generic right shift assignment.
+    template <typename T>
+    wildcard& operator>>=(T&&) const {
+        assert(false);
+        return *((wildcard*)this);
+    }
+
+    //! @brief Generic prefix increment.
+    wildcard& operator++() const {
+        assert(false);
+        return *((wildcard*)this);
+    }
+
+    //! @brief Generic postfix increment.
+    wildcard& operator++(int) const {
+        assert(false);
+        return *((wildcard*)this);
+    }
+
+    //! @brief Generic prefix decrement.
+    wildcard& operator--() const {
+        assert(false);
+        return *((wildcard*)this);
+    }
+
+    //! @brief Generic postfix decrement.
+    wildcard& operator--(int) const {
+        assert(false);
+        return *((wildcard*)this);
     }
 };
 

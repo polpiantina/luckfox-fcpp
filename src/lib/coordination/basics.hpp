@@ -172,14 +172,43 @@ to_field<std::decay_t<A>> mod_other(node_t& node, trace_t call_point, A const& x
     return fcpp::details::mod_other(x, y, ctx.align());
 }
 
-//! @brief Reduces a field to a single value by a binary operation.
+/**
+ * @brief Reduces a field to a single value by a binary operation.
+ *
+ * The folding operation \p op has to have two arguments of type
+ * `to_local<A>`, with the first being the new value to be aggregated
+ * and the second being the current accumulated value.
+ *
+ * The folding operation **may** also have a first `device_t` argument,
+ * in which it will receive the id of the device that is currently being
+ * added to the aggregation.
+ *
+ * The folding operation is applied following the order of device ids.
+ * The accumulate starts from the value associated to the lowest id,
+ * and the operation is applied with values from the second id onwards.
+ */
 template <typename node_t, typename O, typename A>
 auto fold_hood(node_t& node, trace_t call_point, O&& op, A const& a) {
     auto ctx = node.void_context(call_point);
     return fcpp::details::fold_hood(op, a, ctx.align());
 }
 
-//! @brief Reduces a field to a single value by a binary operation with a given value for self.
+/**
+ * @brief Reduces a field to a single value by a binary operation with a given value for self.
+ *
+ * The folding operation \p op has to have two arguments, of type
+ * `to_local<A>` and `B`, with the first being the new value to be
+ * aggregated and the second being the current accumulated value.
+ *
+ * The folding operation **may** also have a first `device_t` argument,
+ * in which it will receive the id of the device that is currently being
+ * added to the aggregation.
+ *
+ * The folding operation is applied following the order of device ids.
+ * The accumulate starts from the value of argument \p b, and the
+ * operation is applied with values from all ids except for the
+ * self id in increasing order.
+*/
 template <typename node_t, typename O, typename A, typename B>
 auto fold_hood(node_t& node, trace_t call_point, O&& op, A const& a, B const& b) {
     auto ctx = node.void_context(call_point);
@@ -265,8 +294,8 @@ template <typename node_t, typename D, typename G>
 return_result_type<D, G(D)> old(node_t& node, trace_t call_point, D const& f0, G&& op) {
     using A = export_result_type<D, G(D)>;
     auto ctx = node.template self_context<A>(call_point);
-    auto f = op(align(node, call_point, ctx.old(f0)));
-    ctx.insert(details::maybe_second(common::type_sequence<D>{}, f));
+    auto f = op(ctx.old(f0));
+    ctx.insert(align(node, call_point, details::maybe_second(common::type_sequence<D>{}, f)));
     return details::maybe_first(common::type_sequence<D>{}, f);
 }
 /**
@@ -282,8 +311,8 @@ return_result_type<D, G(D)> old(node_t& node, trace_t call_point, D const& f0, G
 template <typename node_t, typename D, typename A, typename = std::enable_if_t<std::is_convertible<D, A>::value>>
 A old(node_t& node, trace_t call_point, D const& f0, A const& f) {
     auto ctx = node.template self_context<A>(call_point);
-    ctx.insert(f);
-    return align(node, call_point, ctx.old(f0));
+    ctx.insert(align(node, call_point, f));
+    return ctx.old(f0);
 }
 /**
  * @brief The previous-round value of the argument.
@@ -365,8 +394,8 @@ template <typename node_t, typename D, typename G>
 return_result_type<D, G(D, to_field<D>)> oldnbr(node_t& node, trace_t call_point, D const& f0, G&& op) {
     using A = export_result_type<D, G(D, to_field<D>)>;
     auto ctx = node.template nbr_context<A>(call_point);
-    auto f = op(align(node, call_point, ctx.old(f0)), ctx.nbr(f0));
-    ctx.insert(details::maybe_second(common::type_sequence<D>{}, f));
+    auto f = op(ctx.old(f0), ctx.nbr(f0));
+    ctx.insert(align(node, call_point, details::maybe_second(common::type_sequence<D>{}, f)));
     return details::maybe_first(common::type_sequence<D>{}, f);
 }
 
@@ -499,6 +528,50 @@ spawn(node_t& node, trace_t call_point, G&& process, S&& key_set, Ts const&... x
 //! @brief The exports type used by the spawn construct with key type `K` and status type `B`.
 template <typename K, typename B>
 using spawn_t = common::export_list<std::conditional_t<std::is_same<B, field<bool>>::value, common::export_list<std::unordered_set<K, common::hash<K>>, field<bool>>, std::conditional_t<std::is_same<B, bool>::value, std::unordered_set<K, common::hash<K>>, std::unordered_map<K, B, common::hash<K>>>>>;
+
+
+//! @brief Handles a process, spawning instances of it for every key in the `key_set` and passing general arguments `xs` (legacy version with full status).
+template <typename node_t, typename G, typename S, typename... Ts, typename K = typename std::decay_t<S>::value_type, typename T = std::decay_t<std::result_of_t<G(K const&, Ts const&...)>>, typename R = std::decay_t<tuple_element_t<0,T>>, typename B = std::decay_t<tuple_element_t<1,T>>>
+std::enable_if_t<std::is_same<B,status>::value, std::unordered_map<K, R, common::hash<K>>>
+spawn_deprecated(node_t& node, trace_t call_point, G&& process, S&& key_set, Ts const&... xs) {
+    using keymap_t = std::unordered_map<K, B, common::hash<K>>;
+    using resmap_t = std::unordered_map<K, R, common::hash<K>>;
+    auto ctx = node.template nbr_context<keymap_t>(call_point);
+    field<keymap_t> fk = ctx.nbr({});
+    // keys to be propagated and terminated
+    std::unordered_set<K, common::hash<K>> ky(key_set.begin(), key_set.end()), kn;
+    for (size_t i = 1; i < fcpp::details::get_vals(fk).size(); ++i)
+        for (auto const& k : fcpp::details::get_vals(fk)[i]) {
+            if (k.second == status::terminated)
+                kn.insert(k.first);
+            else
+                ky.insert(k.first);
+        }
+    internal::trace_call trace_caller(node.stack_trace, call_point);
+    keymap_t km;
+    resmap_t rm;
+    // run process for every gathered key
+    for (K const& k : ky)
+        if (kn.count(k) == 0) {
+            internal::trace_key trace_process(node.stack_trace, common::hash_to<trace_t>(k));
+            auto uc = node.undo_context();
+            R r;
+            status s;
+            tie(r, s) = process(k, xs...);
+            // if output status, add result to returned map
+            if ((char)s >= 4) {
+                rm.emplace(k, std::move(r));
+                s = s == status::output ? status::internal : static_cast<status>((char)s & char(3));
+            }
+            // if node in process, merge exports
+            if ((char)s >= 2) uc.save();
+            // if internal or terminated, propagate key status to neighbours
+            if (s == status::terminated or s == status::internal)
+                km.emplace(k, s);
+        } else km.emplace(k, status::terminated);
+    ctx.insert(km);
+    return rm;
+}
 
 //! @}
 

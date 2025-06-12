@@ -157,6 +157,8 @@ set(
     lib/coordination/collection.cpp
     lib/coordination/election.cpp
     lib/coordination/geometry.cpp
+    lib/coordination/past_ctl.cpp
+    lib/coordination/slcs.cpp
     lib/coordination/spreading.cpp
     lib/coordination/time.cpp
     lib/coordination/utils.cpp
@@ -299,7 +301,7 @@ if(FCPP_BUILD_TESTS)
     endif()
     FetchContent_Declare(
       googletest
-      URL https://github.com/google/googletest/archive/f5e592d8ee5ffb1d9af5be7f715ce3576b8bf9c4.zip
+      URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
     )
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(googletest)
